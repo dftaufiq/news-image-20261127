@@ -1,43 +1,33 @@
-#!/usr/bin/env python3
-"""Copy the finished front page into the grader's output folder.
+"""Entrypoint for the 27 Nov 2026 news-image bounty entry.
 
-The artwork itself lives in this repository as entry.png: a 1024 by 1024
-front page drawn in code at build time by generate_image.py. This
-entrypoint needs no network and no third-party packages. It copies the
-same file on every invocation, so repeated runs are byte-identical.
-
-The destination is $MAKEFUN_OUTPUT_DIR when set, otherwise /output.
-The copy is a plain file copy: no decoding, no re-encoding, no network.
+The front-page artwork (entry.png) is drawn by a separate generator;
+this script only delivers it: it finds the picture sitting next to
+itself, checks that it exists and is at most one mebibyte, then copies
+it byte for byte into the folder the bounty harness expects.
 """
-
-from __future__ import annotations
 
 import os
 import shutil
-from pathlib import Path
+import sys
 
-MAX_BYTES = 1024 * 1024
-
-
-def source_image() -> Path:
-    return Path(__file__).resolve().parent / "entry.png"
+MAX_BYTES = 1024 * 1024  # one mebibyte
 
 
-def destination_dir() -> Path:
-    return Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output")
-
-
-def main() -> int:
-    out = destination_dir()
-    out.mkdir(parents=True, exist_ok=True)
-    target = out / "entry.png"
-    shutil.copyfile(source_image(), target)
-    size = target.stat().st_size
-    print(f"copied entry.png to {target} ({size} bytes, 1024x1024)")
-    if size > MAX_BYTES:
-        raise SystemExit(f"entry.png is {size} bytes, over the 1 MiB cap")
+def main():
+    here = os.path.dirname(os.path.abspath(__file__))
+    src = os.path.join(here, "entry.png")
+    if not os.path.isfile(src):
+        print("source picture not found:", src, file=sys.stderr)
+        return 1
+    if os.path.getsize(src) > MAX_BYTES:
+        print("source picture too large:", src, file=sys.stderr)
+        return 1
+    out = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
+    os.makedirs(out, exist_ok=True)
+    shutil.copyfile(src, os.path.join(out, "entry.png"))
+    print("delivered entry.png to", out)
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
